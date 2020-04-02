@@ -1,3 +1,5 @@
+![](https://github.com/Chrisbattarbee/optimization_testing_ground/workflows/CI/badge.svg)
+
 # Description
 
 A suite of benchmarks showcasing different results and laying the foundation for different proof of concept optimizations.
