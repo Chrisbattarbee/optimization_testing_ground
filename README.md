@@ -5,3 +5,12 @@ A suite of benchmarks showcasing different results and laying the foundation for
 # Dependencies
 
 Google Benchmarking library: https://github.com/google/benchmark
+
+# Usage
+```bash
+git submodule update --init --recursive
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ../
+make -j 6
+```
