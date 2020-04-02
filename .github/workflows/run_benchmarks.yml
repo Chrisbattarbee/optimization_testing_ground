@@ -22,13 +22,11 @@ jobs:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
 
-    - name: Build the testground
+    - name: Build the testground and run the benchmarks
       run: |
         git submodule update --init --recursive
         mkdir build
         cd build
         cmake -DCMAKE_BUILD_TYPE=Release ../
         make -j 6
-
-    - name: Run the benchmarks
-      run: ./optimization_testing_ground
+        ./optimization_testing_ground
