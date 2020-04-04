@@ -55,7 +55,7 @@ static void BM_Clusteredness(benchmark::State& state) {
     // Actual benchmark
     for (auto _ : state) {
         // Actual Benchmark
-        __uint32_t total = 0;
+        volatile __uint32_t total = 0;
         for (__uint32_t x = 0; x < NUM_ITERATIONS; x ++) {
             if (array[x] < selectivity_pivot_position) {
                 total += 1;
