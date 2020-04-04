@@ -54,7 +54,6 @@ static void BM_Clusteredness(benchmark::State& state) {
 
     // Actual benchmark
     for (auto _ : state) {
-        // Actual Benchmark
         volatile __uint32_t total = 0;
         for (__uint32_t x = 0; x < NUM_ITERATIONS; x ++) {
             if (array[x] < selectivity_pivot_position) {
@@ -67,7 +66,7 @@ static void BM_Clusteredness(benchmark::State& state) {
     free(array);
 }
 
-
+// Provides arguments of the cross product of [0..101, 10] x [0..101, 10]
 static void CustomArguments(benchmark::internal::Benchmark* b) {
     for (int i = 0; i <= 100; i+= 10)
         for (int j = 0; j <= 100; j+= 10)
