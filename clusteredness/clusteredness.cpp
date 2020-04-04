@@ -29,6 +29,11 @@
  *
  * Step 2 allows us to capture the effects of clusteredness.
  * Step 3 allows us to capture the effects of selectivity.
+ *
+ * Benchmark results.
+ * We see that the benchmark takes longer to execute at selectivity = 50% without clusteredness coming into play
+ * However with high clusteredness, the runtime approaches that of low selectivity scores.
+ * Therefore, removing if conversion when a branch has high clusteredness appears to be a valuable optimization.
 */
 #define NUM_ITERATIONS 100000000
 static void BM_Clusteredness(benchmark::State& state) {
