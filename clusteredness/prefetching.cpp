@@ -4,10 +4,8 @@
 static void* flush_data_cache() {
     const int size = 40*1024*1024; // Allocate 40M. Much larger than L3 cache
     char *c = (char *)malloc(size);
-    for (int i = 0; i < 0xffff; i++) {
-        for (int j = 0; j < size; j++) {
-            c[j] = i * j;
-        }
+    for (int j = 0; j < size; j++) {
+        benchmark::DoNotOptimize(c[j] = rand());
     }
     return c;
 }
@@ -31,9 +29,9 @@ static void BM_HardwarePrefetching(benchmark::State& state) {
 
     // Actual benchmark
     for (auto _ : state) {
-        volatile __uint32_t total = 0;
+        __uint32_t total = 0;
         for (int x = 0; x < num_elements; x ++) {
-            total += array[x];
+            benchmark::DoNotOptimize(total += array[x]);
         }
     }
 
