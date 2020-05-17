@@ -44,7 +44,6 @@ static void BM_Clusteredness(benchmark::State& state) {
     long selectivity_pivot_position = RAND_MAX * selectivity;
     long clusteredness_pivot_position = RAND_MAX * clusteredness;
 
-    // Set up
     auto* array = (uint*) malloc(sizeof(u_int32_t) * NUM_ITERATIONS);
     srand(time(NULL));
     int prev = random();
@@ -68,6 +67,8 @@ static void BM_Clusteredness(benchmark::State& state) {
             }
         }
     }
+
+    // Teardown
     free(array);
 }
 

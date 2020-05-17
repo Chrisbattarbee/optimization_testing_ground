@@ -4,5 +4,21 @@ add_subdirectory(benchmark)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(optimization_testing_ground main.cpp clusteredness/clusteredness.cpp clusteredness/clusteredness.h)
+option(PGO_INSTRUMENTATION_GENERATE "Enable this if you want the benchmark to be built with IR level instrumentation" OFF)
+option(PGO_INSTRUMENTATION_USE "Enable this if you want the benchmark to be built using optimizations enabled by IR level instrumentation" OFF)
+
+SET(CMAKE_CXX_FLAGS "-O2")
+SET(CMAKE_C_FLAGS "-O2")
+
+if (PGO_INSTRUMENTATION_GENERATE)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-instr-generate -Xclang -fprofile-instrument=llvm")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -Xclang -fprofile-instrument=llvm")
+ENDIF(PGO_INSTRUMENTATION_GENERATE)
+
+if (PGO_INSTRUMENTATION_USE)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-instr-use=${PGO_INSTRUMENTATION_USE}")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-use=${PGO_INSTRUMENTATION_USE}")
+ENDIF(PGO_INSTRUMENTATION_USE)
+
+add_executable(optimization_testing_ground main.cpp clusteredness/clusteredness.cpp clusteredness/clusteredness.h clusteredness/prefetching.cpp clusteredness/prefetching.h)
 target_link_libraries(optimization_testing_ground benchmark::benchmark)
