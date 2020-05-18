@@ -29,9 +29,8 @@ static void BM_HardwarePrefetching(benchmark::State& state) {
         state.PauseTiming();
         free(flush_data_cache());
         state.ResumeTiming();
-        volatile __uint32_t total = 0;
         for (int x = 0; x < num_elements; x ++) {
-            benchmark::DoNotOptimize(total += array[x]);
+            benchmark::DoNotOptimize(array[x]);
         }
     }
 
@@ -58,15 +57,13 @@ static void BM_LackOfHardwarePrefetching(benchmark::State& state) {
     for (auto _ : state) {
         state.PauseTiming();
         free(flush_data_cache());
-        volatile uint32_t temp = 0;
         // Load our index array in after we flush cache
         for (int x = 0; x < INDEX_ARRAY_SIZE; x ++) {
-            benchmark::DoNotOptimize(temp = index_array[x]);
+            benchmark::DoNotOptimize(index_array[x]);
         }
         state.ResumeTiming();
-        volatile __uint64_t total = 0;
         for (int x = 0; x < num_elements; x ++) {
-            benchmark::DoNotOptimize(total += array[index_array[x % INDEX_ARRAY_SIZE]]);
+            benchmark::DoNotOptimize(array[index_array[x % INDEX_ARRAY_SIZE]]);
         }
     }
 
