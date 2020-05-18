@@ -30,7 +30,7 @@ static void BM_HardwarePrefetching(benchmark::State& state) {
         free(flush_data_cache());
         state.ResumeTiming();
         volatile __uint32_t total = 0;
-        for (int x = 0; x < num_elements; x += 4) {
+        for (int x = 0; x < num_elements; x ++) {
             benchmark::DoNotOptimize(total += array[x]);
         }
     }
