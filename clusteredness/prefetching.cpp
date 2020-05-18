@@ -19,7 +19,8 @@ static void* flush_data_cache() {
  * Higher amounts of memory should have an overall higher throughput of the read due to the predictable stride
  * access pattern and the hardware prefetcher kicking in.
  */
-template <bool is_cache_flushed>
+#define PREFETCH_OFFSET 64 // Assuming 64 for now, taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
+template <bool is_cache_flushed, bool is_software_prefetching_used>
 static void BM_HardwarePrefetching(benchmark::State& state) {
     // Setup
     srand(time(NULL));
@@ -37,6 +38,10 @@ static void BM_HardwarePrefetching(benchmark::State& state) {
             state.ResumeTiming();
         }
         for (int x = 0; x < num_elements; x ++) {
+            if constexpr (is_software_prefetching_used) {
+                // Taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
+                __builtin_prefetch(&array[x + 2 * PREFETCH_OFFSET]);
+            }
             benchmark::DoNotOptimize(array[x]);
         }
     }
@@ -67,10 +72,9 @@ static void BM_HardwarePrefetching(benchmark::State& state) {
  */
 
 #define CACHE_SIZE 32 * 1024 // Assume the L1 data cache is 32KB, this is the case on my machine and the lab machine I was testing on
-template <bool is_cache_flushed>
+template <bool is_cache_flushed, bool is_software_pretching_used>
 static void BM_LackOfHardwarePrefetching(benchmark::State& state) {
     // Setup
-
     srand(time(NULL));
     auto num_elements = state.range(0);
             auto* array = (uint512_t*) malloc(sizeof(uint512_t) * num_elements);
@@ -100,7 +104,12 @@ static void BM_LackOfHardwarePrefetching(benchmark::State& state) {
         }
 
         for (int x = 0; x < num_elements; x ++) {
-            benchmark::DoNotOptimize(array[index_array[x % INDEX_ARRAY_SIZE]]);
+            if constexpr (is_software_pretching_used) {
+                // Taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
+                __builtin_prefetch(&array[index_array[x + PREFETCH_OFFSET ]]);
+                __builtin_prefetch(&index_array[x + 2 * PREFETCH_OFFSET]);
+            }
+            benchmark::DoNotOptimize(array[index_array[x]]);
         }
     }
 
@@ -124,8 +133,13 @@ static void CustomArguments(benchmark::internal::Benchmark* b) {
 }
 
 void prefetching::register_benchmarks() {
-    BENCHMARK_TEMPLATE(BM_HardwarePrefetching, true)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK_TEMPLATE(BM_HardwarePrefetching, false)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK_TEMPLATE(BM_LackOfHardwarePrefetching, true)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK_TEMPLATE(BM_LackOfHardwarePrefetching, false)->Apply(CustomArguments)->Iterations(100);
+    // Iterate over all of the possible combinations of the template
+    BENCHMARK_TEMPLATE(BM_HardwarePrefetching, false, false)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_HardwarePrefetching, false, true)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_HardwarePrefetching, true, false)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_HardwarePrefetching, true, true)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_LackOfHardwarePrefetching, false, false)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_LackOfHardwarePrefetching, false, true)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_LackOfHardwarePrefetching, true, false)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_LackOfHardwarePrefetching, true, true)->Apply(CustomArguments)->Iterations(100);
 }

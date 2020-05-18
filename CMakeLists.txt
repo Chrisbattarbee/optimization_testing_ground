@@ -11,11 +11,6 @@ option(PGO_INSTRUMENTATION_USE "Enable this if you want the benchmark to be buil
 SET(CMAKE_CXX_FLAGS "-O2")
 SET(CMAKE_C_FLAGS "-O2")
 
-set(Boost_USE_STATIC_LIBS OFF)
-set(Boost_USE_MULTITHREADED OFF)
-set(Boost_USE_STATIC_RUNTIME OFF)
-message(STATUS "Boost version: ${Boost_VERSION}")
-
 if (PGO_INSTRUMENTATION_GENERATE)
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-instr-generate -Xclang -fprofile-instrument=llvm")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -Xclang -fprofile-instrument=llvm")
@@ -28,4 +23,4 @@ ENDIF(PGO_INSTRUMENTATION_USE)
 
 add_executable(optimization_testing_ground main.cpp clusteredness/clusteredness.cpp clusteredness/clusteredness.h clusteredness/prefetching.cpp clusteredness/prefetching.h)
 target_link_libraries(optimization_testing_ground benchmark::benchmark)
-target_link_libraries(optimization_testing_ground boost)
+target_link_libraries(optimization_testing_ground Boost::boost)
