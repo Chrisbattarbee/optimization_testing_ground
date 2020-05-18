@@ -133,6 +133,7 @@ static void CustomArguments(benchmark::internal::Benchmark* b) {
 }
 
 void prefetching::register_benchmarks() {
+    std::cerr << "Prefetch distance is: " << PREFETCH_OFFSET  << std::endl;
     // Iterate over all of the possible combinations of the template
     BENCHMARK_TEMPLATE(BM_HardwarePrefetching, false, false)->Apply(CustomArguments)->Iterations(100);
     BENCHMARK_TEMPLATE(BM_HardwarePrefetching, false, true)->Apply(CustomArguments)->Iterations(100);
