@@ -1,4 +1,5 @@
 #include <benchmark/benchmark.h>
+#include <random>
 #include "prefetching.h"
 
 static void* flush_data_cache() {
@@ -15,6 +16,7 @@ static void* flush_data_cache() {
  * Higher amounts of memory should have an overall higher throughput of the read due to the predictable stride
  * access pattern and the hardware prefetcher kicking in.
  */
+template <bool is_cache_flushed>
 static void BM_HardwarePrefetching(benchmark::State& state) {
     // Setup
     srand(time(NULL));
@@ -26,9 +28,11 @@ static void BM_HardwarePrefetching(benchmark::State& state) {
 
     // Actual benchmark
     for (auto _ : state) {
-        state.PauseTiming();
-        free(flush_data_cache());
-        state.ResumeTiming();
+        if constexpr (is_cache_flushed) {
+            state.PauseTiming();
+            free(flush_data_cache());
+            state.ResumeTiming();
+        }
         for (int x = 0; x < num_elements; x ++) {
             benchmark::DoNotOptimize(array[x]);
         }
@@ -38,30 +42,56 @@ static void BM_HardwarePrefetching(benchmark::State& state) {
     free(array);
 }
 
-#define INDEX_ARRAY_SIZE 128
+/*
+ * The key things to note about this benchmark are the following:
+ *   General Hypothesis:
+ *     Create an array of random indexes to index into the data array.
+ *     This will mean that the hardware prefetcher will not be able to notice a pattern in the accesses and therefore
+ *     will not be able to load the elements into cache ahead of time, leading to stalls in the pipeline.
+ *
+ *  Design decisions:
+ *    Why not generate a random each iteration of the access?
+ *      The time taken to pause and unpause the clock is too large as well as giving the loads additional time to resolve
+ *      from the main memory system
+ *    Won't the index array fill up the cache?
+ *      Yes potentially though the idea is that the index array is iterated through sequentially and therefore the
+ *      prefetcher should notice this stride and prefetch the index array into cache whilst leaving the rest of the cache
+ *      open for use
+ */
+
+#define CACHE_SIZE 32 * 1024 // Assume the L1 data cache is 32KB, this is the case on my machine and the lab machine I was testing on
+template <bool is_cache_flushed>
 static void BM_LackOfHardwarePrefetching(benchmark::State& state) {
     // Setup
+
     srand(time(NULL));
     auto num_elements = state.range(0);
-    auto* array = (uint32_t*) malloc(sizeof(u_int32_t) * num_elements);
+            auto* array = (uint32_t*) malloc(sizeof(u_int32_t) * num_elements);
     for (uint32_t x = 0; x < num_elements; x ++) {
         array[x] = rand();
     }
 
+    // Create an index array then randomly shuffle it
+    u_int32_t INDEX_ARRAY_SIZE = num_elements;
     auto* index_array = (uint32_t*) malloc(sizeof(u_int32_t) * INDEX_ARRAY_SIZE);
     for (uint32_t x = 0; x < INDEX_ARRAY_SIZE; x ++) {
-        index_array[x] = rand() % num_elements;
+        index_array[x] = x;
     }
+    std::shuffle(&index_array[0], &index_array[INDEX_ARRAY_SIZE], std::mt19937(std::random_device()()));
 
     // Actual benchmark
     for (auto _ : state) {
-        state.PauseTiming();
-        free(flush_data_cache());
-        // Load our index array in after we flush cache
-        for (int x = 0; x < INDEX_ARRAY_SIZE; x ++) {
-            benchmark::DoNotOptimize(index_array[x]);
+        if constexpr (is_cache_flushed) {
+            state.PauseTiming();
+            free(flush_data_cache());
+            // Load in the first part of the index array in after we flush cache (as much as we can fit into cache
+            // to give the hardware pre-fetched a fighting chance of working without the initial delay
+            for (int x = 0; x < std::min((ulong) INDEX_ARRAY_SIZE, CACHE_SIZE / sizeof(uint32_t)); x++) {
+                benchmark::DoNotOptimize(index_array[x]);
+            }
+            state.ResumeTiming();
         }
-        state.ResumeTiming();
+
         for (int x = 0; x < num_elements; x ++) {
             benchmark::DoNotOptimize(array[index_array[x % INDEX_ARRAY_SIZE]]);
         }
@@ -87,6 +117,8 @@ static void CustomArguments(benchmark::internal::Benchmark* b) {
 }
 
 void prefetching::register_benchmarks() {
-    BENCHMARK(BM_HardwarePrefetching)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK(BM_LackOfHardwarePrefetching)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_HardwarePrefetching, true)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_HardwarePrefetching, false)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_LackOfHardwarePrefetching, true)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_LackOfHardwarePrefetching, false)->Apply(CustomArguments)->Iterations(100);
 }
