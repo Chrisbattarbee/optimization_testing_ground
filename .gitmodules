@@ -1,6 +1,6 @@
 [submodule "benchmark"]
 	path = benchmark
 	url = https://github.com/Chrisbattarbee/benchmark
-[submodule "boost"]
-	path = boost
-	url = https://github.com/boostorg/boost
+[submodule "boost-cmake"]
+	path = boost-cmake
+	url = https://github.com/Orphis/boost-cmake.git

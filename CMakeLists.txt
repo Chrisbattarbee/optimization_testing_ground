@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(optimization_testing_ground)
 add_subdirectory(benchmark)
+add_subdirectory(boost-cmake)
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -11,9 +12,8 @@ SET(CMAKE_CXX_FLAGS "-O2")
 SET(CMAKE_C_FLAGS "-O2")
 
 set(Boost_USE_STATIC_LIBS OFF)
-set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_MULTITHREADED OFF)
 set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost 1.50 REQUIRED COMPONENTS filesystem)
 message(STATUS "Boost version: ${Boost_VERSION}")
 
 if (PGO_INSTRUMENTATION_GENERATE)
