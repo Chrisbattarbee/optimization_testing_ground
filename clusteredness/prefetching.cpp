@@ -1,6 +1,9 @@
 #include <benchmark/benchmark.h>
 #include <random>
 #include "prefetching.h"
+#include <boost/multiprecision/cpp_int.hpp>
+
+using namespace boost::multiprecision;
 
 static void* flush_data_cache() {
     const int size = 40*1024*1024; // Allocate 40M. Much larger than L3 cache
@@ -21,7 +24,7 @@ static void BM_HardwarePrefetching(benchmark::State& state) {
     // Setup
     srand(time(NULL));
     auto num_elements = state.range(0);
-    auto* array = (uint32_t*) malloc(sizeof(u_int32_t) * num_elements);
+    auto* array = (uint512_t*) malloc(sizeof(uint512_t) * num_elements);
     for (uint32_t x = 0; x < num_elements; x ++) {
         array[x] = rand();
     }
@@ -57,6 +60,10 @@ static void BM_HardwarePrefetching(benchmark::State& state) {
  *      Yes potentially though the idea is that the index array is iterated through sequentially and therefore the
  *      prefetcher should notice this stride and prefetch the index array into cache whilst leaving the rest of the cache
  *      open for use
+ *    Why are you using a 512 bit integer?
+ *      So that each element in our array spans one cache line, this means that the performance between LackOfHardware
+ *      and Hardware are more comparable as each access is one cache line, with another structure Hardware gets to access
+ *      cacheline / sizeof(element_structure) sequentially.
  */
 
 #define CACHE_SIZE 32 * 1024 // Assume the L1 data cache is 32KB, this is the case on my machine and the lab machine I was testing on
@@ -66,7 +73,7 @@ static void BM_LackOfHardwarePrefetching(benchmark::State& state) {
 
     srand(time(NULL));
     auto num_elements = state.range(0);
-            auto* array = (uint32_t*) malloc(sizeof(u_int32_t) * num_elements);
+            auto* array = (uint512_t*) malloc(sizeof(uint512_t) * num_elements);
     for (uint32_t x = 0; x < num_elements; x ++) {
         array[x] = rand();
     }
