@@ -5,6 +5,15 @@
 
 using namespace boost::multiprecision;
 
+
+// Tunable parameters
+#define PREFETCH_OFFSET 64 // Assuming 64 for now, taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
+#define CACHE_SIZE 32 * 1024 // Assume the L1 data cache is 32KB, this is the case on my machine and the lab machine I was testing on
+#define MAX_NUM_ELEMENTS_IN_ARRAY 100000
+
+// Test Control
+#define TESTING_EFFECTS_OF_CACHE_FLUSHING false
+
 static void* flush_data_cache() {
     const int size = 40*1024*1024; // Allocate 40M. Much larger than L3 cache
     char *c = (char *)malloc(size);
@@ -22,7 +31,6 @@ static void* flush_data_cache() {
  * This is no longer used, as we want to have the additional layer of indirection but just not jumbled up to have a more
  * reasonable comparison with the indirect memory access comparison
  */
-#define PREFETCH_OFFSET 64 // Assuming 64 for now, taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
 template <bool is_cache_flushed, bool is_software_prefetching_used>
 static void BM_HardwarePrefetching(benchmark::State& state) {
     // Setup
@@ -74,7 +82,6 @@ static void BM_HardwarePrefetching(benchmark::State& state) {
  *      cacheline / sizeof(element_structure) sequentially.
  */
 
-#define CACHE_SIZE 32 * 1024 // Assume the L1 data cache is 32KB, this is the case on my machine and the lab machine I was testing on
 template <bool shuffled_memory_access, bool is_cache_flushed, bool is_software_prefetching_used>
 static void BM_Prefetching(benchmark::State& state) {
     // Setup
@@ -122,7 +129,6 @@ static void BM_Prefetching(benchmark::State& state) {
     free(array);
 }
 
-#define MAX_NUM_ELEMENTS_IN_ARRAY 100000
 // Provides arguments in the range 1..100000, skewing the produced arguments towards 0
 static void CustomArguments(benchmark::internal::Benchmark* b) {
     for (int i = 1; i < 10; i+= 1)
@@ -137,7 +143,6 @@ static void CustomArguments(benchmark::internal::Benchmark* b) {
         b->Args({i});
 }
 
-#define TESTING_EFFECTS_OF_CACHE_FLUSHING false
 void prefetching::register_benchmarks() {
     std::cerr << "Prefetch distance is: " << PREFETCH_OFFSET  << std::endl;
     // Iterate over all of the possible combinations of the template
