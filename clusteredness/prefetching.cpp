@@ -13,6 +13,7 @@ using namespace boost::multiprecision;
 
 // Test Control
 #define TESTING_EFFECTS_OF_CACHE_FLUSHING false
+#define REPETITIONS_OF_EXPERIMENTS 100
 
 static void* flush_data_cache() {
     const int size = 40*1024*1024; // Allocate 40M. Much larger than L3 cache
@@ -148,14 +149,14 @@ void prefetching::register_benchmarks() {
     // Iterate over all of the possible combinations of the template
     if constexpr (TESTING_EFFECTS_OF_CACHE_FLUSHING) {
         // Add tests where the cache is not flushed
-        BENCHMARK_TEMPLATE(BM_Prefetching, false, false, false)->Apply(CustomArguments)->Iterations(100);
-        BENCHMARK_TEMPLATE(BM_Prefetching, true, false, false)->Apply(CustomArguments)->Iterations(100);
-        BENCHMARK_TEMPLATE(BM_Prefetching, true, false, true)->Apply(CustomArguments)->Iterations(100);
-        BENCHMARK_TEMPLATE(BM_Prefetching, false, false, true)->Apply(CustomArguments)->Iterations(100);
+        BENCHMARK_TEMPLATE(BM_Prefetching, false, false, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+        BENCHMARK_TEMPLATE(BM_Prefetching, true, false, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+        BENCHMARK_TEMPLATE(BM_Prefetching, true, false, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+        BENCHMARK_TEMPLATE(BM_Prefetching, false, false, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
     }
     // Add all tests where the cache is flushed
-    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, false)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, false)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, true)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
 }
