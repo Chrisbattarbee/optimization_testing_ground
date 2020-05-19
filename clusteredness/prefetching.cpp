@@ -78,8 +78,8 @@ static void BM_HardwarePrefetching(benchmark::State& state) {
  *      prefetcher should notice this stride and prefetch the index array into cache whilst leaving the rest of the cache
  *      open for use
  *    Why are you using a 512 bit integer?
- *      So that each element in our array spans one cache line, this means that the performance between LackOfHardware
- *      and Hardware are more comparable as each access is one cache line, with another structure Hardware gets to access
+ *      So that each element in our array spans one cache line, this means that the performance between sequential access
+ *      and random access are more comparable as each access is one cache line, with another structure Hardware gets to access
  *      cacheline / sizeof(element_structure) sequentially.
  */
 
