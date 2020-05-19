@@ -18,6 +18,9 @@ static void* flush_data_cache() {
  * This benchmark aims to show the speedup provided by hardware prefetching on a per element read basis
  * Higher amounts of memory should have an overall higher throughput of the read due to the predictable stride
  * access pattern and the hardware prefetcher kicking in.
+ *
+ * This is no longer used, as we want to have the additional layer of indirection but just not jumbled up to have a more
+ * reasonable comparison with the indirect memory access comparison
  */
 #define PREFETCH_OFFSET 64 // Assuming 64 for now, taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
 template <bool is_cache_flushed, bool is_software_prefetching_used>
@@ -42,7 +45,7 @@ static void BM_HardwarePrefetching(benchmark::State& state) {
                 // Taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
                 __builtin_prefetch(&array[x + 2 * PREFETCH_OFFSET]);
             }
-            benchmark::DoNotOptimize(array[x]);
+            benchmark::DoNotOptimize(array[x]++);
         }
     }
 
@@ -72,8 +75,8 @@ static void BM_HardwarePrefetching(benchmark::State& state) {
  */
 
 #define CACHE_SIZE 32 * 1024 // Assume the L1 data cache is 32KB, this is the case on my machine and the lab machine I was testing on
-template <bool is_cache_flushed, bool is_software_pretching_used>
-static void BM_LackOfHardwarePrefetching(benchmark::State& state) {
+template <bool shuffled_memory_access, bool is_cache_flushed, bool is_software_prefetching_used>
+static void BM_Prefetching(benchmark::State& state) {
     // Setup
     srand(time(NULL));
     auto num_elements = state.range(0);
@@ -88,7 +91,9 @@ static void BM_LackOfHardwarePrefetching(benchmark::State& state) {
     for (uint32_t x = 0; x < INDEX_ARRAY_SIZE; x ++) {
         index_array[x] = x;
     }
-    std::shuffle(&index_array[0], &index_array[INDEX_ARRAY_SIZE], std::mt19937(std::random_device()()));
+    if constexpr (shuffled_memory_access) {
+        std::shuffle(&index_array[0], &index_array[INDEX_ARRAY_SIZE], std::mt19937(std::random_device()()));
+    }
 
     // Actual benchmark
     for (auto _ : state) {
@@ -104,12 +109,12 @@ static void BM_LackOfHardwarePrefetching(benchmark::State& state) {
         }
 
         for (int x = 0; x < num_elements; x ++) {
-            if constexpr (is_software_pretching_used) {
+            if constexpr (is_software_prefetching_used) {
                 // Taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
                 __builtin_prefetch(&array[index_array[x + PREFETCH_OFFSET ]]);
                 __builtin_prefetch(&index_array[x + 2 * PREFETCH_OFFSET]);
             }
-            benchmark::DoNotOptimize(array[index_array[x]]);
+            benchmark::DoNotOptimize(array[index_array[x]]++);
         }
     }
 
@@ -132,15 +137,20 @@ static void CustomArguments(benchmark::internal::Benchmark* b) {
         b->Args({i});
 }
 
+#define TESTING_EFFECTS_OF_CACHE_FLUSHING false
 void prefetching::register_benchmarks() {
     std::cerr << "Prefetch distance is: " << PREFETCH_OFFSET  << std::endl;
     // Iterate over all of the possible combinations of the template
-    BENCHMARK_TEMPLATE(BM_HardwarePrefetching, false, false)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK_TEMPLATE(BM_HardwarePrefetching, false, true)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK_TEMPLATE(BM_HardwarePrefetching, true, false)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK_TEMPLATE(BM_HardwarePrefetching, true, true)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK_TEMPLATE(BM_LackOfHardwarePrefetching, false, false)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK_TEMPLATE(BM_LackOfHardwarePrefetching, false, true)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK_TEMPLATE(BM_LackOfHardwarePrefetching, true, false)->Apply(CustomArguments)->Iterations(100);
-    BENCHMARK_TEMPLATE(BM_LackOfHardwarePrefetching, true, true)->Apply(CustomArguments)->Iterations(100);
+    if constexpr (TESTING_EFFECTS_OF_CACHE_FLUSHING) {
+        // Add tests where the cache is not flushed
+        BENCHMARK_TEMPLATE(BM_Prefetching, false, false, false)->Apply(CustomArguments)->Iterations(100);
+        BENCHMARK_TEMPLATE(BM_Prefetching, true, false, false)->Apply(CustomArguments)->Iterations(100);
+        BENCHMARK_TEMPLATE(BM_Prefetching, true, false, true)->Apply(CustomArguments)->Iterations(100);
+        BENCHMARK_TEMPLATE(BM_Prefetching, false, false, true)->Apply(CustomArguments)->Iterations(100);
+    }
+    // Add all tests where the cache is flushed
+    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, false)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, false)->Apply(CustomArguments)->Iterations(100);
+    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, true)->Apply(CustomArguments)->Iterations(100);
 }
