@@ -2,6 +2,7 @@
 #include <random>
 #include "prefetching.h"
 #include <boost/multiprecision/cpp_int.hpp>
+#include "ittnotify.h"
 
 using namespace boost::multiprecision;
 
@@ -14,6 +15,7 @@ using namespace boost::multiprecision;
 // Test Control
 #define TESTING_EFFECTS_OF_CACHE_FLUSHING false
 #define REPETITIONS_OF_EXPERIMENTS 100
+#define ADD_VTUNE_INSTRUMENTATION true
 
 static void* flush_data_cache() {
     const int size = 40*1024*1024; // Allocate 40M. Much larger than L3 cache
@@ -93,6 +95,9 @@ static void BM_Prefetching(benchmark::State& state) {
         array[x] = rand();
     }
 
+    __itt_domain* domain = __itt_domain_create("Hardware Prefetcher");
+    __itt_string_handle* task = __itt_string_handle_create("Memory Load Iteration");
+
     // Create an index array then randomly shuffle it
     u_int32_t INDEX_ARRAY_SIZE = num_elements;
     auto* index_array = (uint32_t*) malloc(sizeof(u_int32_t) * INDEX_ARRAY_SIZE);
@@ -116,13 +121,19 @@ static void BM_Prefetching(benchmark::State& state) {
             state.ResumeTiming();
         }
 
+        if constexpr(ADD_VTUNE_INSTRUMENTATION) {
+            __itt_task_begin(domain, __itt_null, __itt_null, task);
+        }
         for (int x = 0; x < num_elements; x ++) {
             if constexpr (is_software_prefetching_used) {
                 // Taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
                 __builtin_prefetch(&array[index_array[x + PREFETCH_OFFSET ]]);
                 __builtin_prefetch(&index_array[x + 2 * PREFETCH_OFFSET]);
             }
-            benchmark::DoNotOptimize(array[index_array[x]]++);
+            benchmark::DoNotOptimize((uint32_t) array[index_array[x]]++);
+        }
+        if constexpr(ADD_VTUNE_INSTRUMENTATION) {
+            __itt_task_end(domain);
         }
     }
 
@@ -130,7 +141,7 @@ static void BM_Prefetching(benchmark::State& state) {
     free(array);
 }
 
-// Provides arguments in the range 1..100000, skewing the produced arguments towards 0
+// Provides arguments in the range 1..100000, skewing the Hardwareproduced arguments towards 0
 static void CustomArguments(benchmark::internal::Benchmark* b) {
     for (int i = 1; i < 10; i+= 1)
         b->Args({i});
@@ -155,8 +166,8 @@ void prefetching::register_benchmarks() {
         BENCHMARK_TEMPLATE(BM_Prefetching, false, false, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
     }
     // Add all tests where the cache is flushed
-    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
-    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
-    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+//    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+//    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+//    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
     BENCHMARK_TEMPLATE(BM_Prefetching, true, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
 }

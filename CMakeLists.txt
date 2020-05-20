@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(optimization_testing_ground)
 add_subdirectory(benchmark)
 add_subdirectory(boost-cmake)
+add_subdirectory(IntelSEAPI/ittnotify)
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -24,3 +25,4 @@ ENDIF(PGO_INSTRUMENTATION_USE)
 add_executable(optimization_testing_ground main.cpp clusteredness/clusteredness.cpp clusteredness/clusteredness.h clusteredness/prefetching.cpp clusteredness/prefetching.h)
 target_link_libraries(optimization_testing_ground benchmark::benchmark)
 target_link_libraries(optimization_testing_ground Boost::boost)
+target_link_libraries(optimization_testing_ground ittnotify)
