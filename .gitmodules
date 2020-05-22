@@ -1,9 +1,6 @@
 [submodule "benchmark"]
 	path = benchmark
 	url = https://github.com/Chrisbattarbee/benchmark
-[submodule "boost-cmake"]
-	path = boost-cmake
-	url = https://github.com/Orphis/boost-cmake.git
 [submodule "IntelSEAPI"]
 	path = IntelSEAPI
 	url = https://github.com/intel/IntelSEAPI
