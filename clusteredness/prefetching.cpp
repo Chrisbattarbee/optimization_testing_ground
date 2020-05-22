@@ -93,7 +93,7 @@ static void BM_Prefetching(benchmark::State& state) {
     srand(time(NULL));
     auto num_elements = state.range(0);
     auto* array =  (uint32_t*) malloc(sizeof(uint32_t) * num_elements);
-    for (uint32_t x = 0; x < num_elements; x += num_elements) {
+    for (volatile uint32_t x = 0; x < num_elements; x += num_elements) {
         array[x] = rand();
     }
 
@@ -103,7 +103,7 @@ static void BM_Prefetching(benchmark::State& state) {
     // Create an index array then randomly shuffle it
     u_int32_t INDEX_ARRAY_SIZE = num_elements;
     auto* index_array = (uint32_t*) malloc(sizeof(u_int32_t) * INDEX_ARRAY_SIZE);
-    for (uint32_t x = 0; x < INDEX_ARRAY_SIZE; x ++) {
+    for (volatile uint32_t x = 0; x < INDEX_ARRAY_SIZE; x ++) {
         index_array[x] = x;
     }
     if constexpr (shuffled_memory_access) {
@@ -118,7 +118,7 @@ static void BM_Prefetching(benchmark::State& state) {
             // Load in the first part of the index array in after we flush cache (as much as we can fit into cache
             // to give the hardware pre-fetched a fighting chance of working without the initial delay
             if constexpr(SHOULD_PREFETCH_INDEX_ARRAY) {
-                for (int x = 0; x < std::min((ulong) INDEX_ARRAY_SIZE, CACHE_SIZE / sizeof(uint32_t)); x++) {
+                for (volatile int x = 0; x < std::min((ulong) INDEX_ARRAY_SIZE, CACHE_SIZE / sizeof(uint32_t)); x++) {
                     __builtin_prefetch(&index_array[x]);
                 }
                 // Sleep for 0.005 seconds to allow the load in from memory
@@ -130,7 +130,7 @@ static void BM_Prefetching(benchmark::State& state) {
         if constexpr(ADD_VTUNE_INSTRUMENTATION) {
             __itt_task_begin(domain, __itt_null, __itt_null, task);
         }
-        for (volatile int x = 0; x < num_elements; x ++) {
+        for (int x = 0; x < num_elements; x ++) {
             if constexpr (is_software_prefetching_used) {
                 // Taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
                 __builtin_prefetch(&array[index_array[x + PREFETCH_OFFSET ]]);
