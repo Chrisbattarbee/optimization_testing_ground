@@ -10,13 +10,14 @@ using namespace boost::multiprecision;
 // Tunable parameters
 #define PREFETCH_OFFSET 64 // Assuming 64 for now, taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
 #define CACHE_SIZE 32 * 1024 // Assume the L1 data cache is 32KB, this is the case on my machine and the lab machine I was testing on
-#define MAX_NUM_ELEMENTS_IN_ARRAY 100000
+#define MAX_NUM_ELEMENTS_IN_ARRAY 100000000
 // #define NUMBER_OF_UINT32_TS_IN_A_CACHE_LINE 512 / 32 Maybe add this back in later with cache sizes
 
 // Test Control
 #define TESTING_EFFECTS_OF_CACHE_FLUSHING false
 #define REPETITIONS_OF_EXPERIMENTS 100
-#define ADD_VTUNE_INSTRUMENTATION true
+#define ADD_VTUNE_INSTRUMENTATION false
+#define SHOULD_PREFETCH_INDEX_ARRAY false
 
 static void* flush_data_cache() {
     const int size = 40*1024*1024; // Allocate 40M. Much larger than L3 cache
@@ -116,8 +117,12 @@ static void BM_Prefetching(benchmark::State& state) {
             free(flush_data_cache());
             // Load in the first part of the index array in after we flush cache (as much as we can fit into cache
             // to give the hardware pre-fetched a fighting chance of working without the initial delay
-            for (int x = 0; x < std::min((ulong) INDEX_ARRAY_SIZE, CACHE_SIZE / sizeof(uint32_t)); x++) {
-                benchmark::DoNotOptimize(index_array[x]);
+            if constexpr(SHOULD_PREFETCH_INDEX_ARRAY) {
+                for (int x = 0; x < std::min((ulong) INDEX_ARRAY_SIZE, CACHE_SIZE / sizeof(uint32_t)); x++) {
+                    __builtin_prefetch(&index_array[x]);
+                }
+                // Sleep for 0.005 seconds to allow the load in from memory
+                usleep(5000);
             }
             state.ResumeTiming();
         }
@@ -125,7 +130,7 @@ static void BM_Prefetching(benchmark::State& state) {
         if constexpr(ADD_VTUNE_INSTRUMENTATION) {
             __itt_task_begin(domain, __itt_null, __itt_null, task);
         }
-        for (int x = 0; x < num_elements; x ++) {
+        for (volatile int x = 0; x < num_elements; x ++) {
             if constexpr (is_software_prefetching_used) {
                 // Taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
                 __builtin_prefetch(&array[index_array[x + PREFETCH_OFFSET ]]);
@@ -144,16 +149,23 @@ static void BM_Prefetching(benchmark::State& state) {
 
 // Provides arguments in the range 1..100000, skewing the Hardwareproduced arguments towards 0
 static void CustomArguments(benchmark::internal::Benchmark* b) {
-    for (int i = 1; i < 10; i+= 1)
+    for (int i = 1; i < std::min(10, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 1)
         b->Args({i});
-    for (int i = 10; i < 100; i+= 10)
+    for (int i = 10; i < std::min(100, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 10)
         b->Args({i});
-    for (int i = 100; i < 1000; i+= 100)
+    for (int i = 100; i < std::min(1000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 100)
         b->Args({i});
-    for (int i = 1000; i < 10000; i+= 1000)
+    for (int i = 1000; i < std::min(10000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 1000)
         b->Args({i});
-    for (int i = 10000; i < MAX_NUM_ELEMENTS_IN_ARRAY; i+= 10000)
+    for (int i = 10000; i < std::min(100000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 10000)
         b->Args({i});
+    for (int i = 100000; i < std::min(1000000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 100000)
+        b->Args({i});
+    for (int i = 1000000; i < std::min(10000000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 1000000)
+        b->Args({i});
+    for (int i = 10000000; i < std::min(100000000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 10000000)
+        b->Args({i});
+    b->Args({10000000000});
 }
 
 void prefetching::register_benchmarks() {
