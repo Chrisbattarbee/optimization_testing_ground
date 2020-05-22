@@ -8,8 +8,10 @@ set(CMAKE_CXX_STANDARD 20)
 option(PGO_INSTRUMENTATION_GENERATE "Enable this if you want the benchmark to be built with IR level instrumentation" OFF)
 option(PGO_INSTRUMENTATION_USE "Enable this if you want the benchmark to be built using optimizations enabled by IR level instrumentation" OFF)
 
-SET(CMAKE_CXX_FLAGS "-O2  -Xclang -load -Xclang /home/chris/programming/camb_software_prefetch_revival/cmake-build-debug-clang-7/swprefetcher/libSWPrefetecherPass.so")
-SET(CMAKE_C_FLAGS "-O2 -Xclang -load -Xclang /home/chris/programming/camb_software_prefetch_revival/cmake-build-debug-clang-7/swprefetcher/libSWPrefetecherPass.so")
+#SET(CMAKE_CXX_FLAGS "-O2  -Xclang -load -Xclang /home/chris/programming/camb_software_prefetch_revival/cmake-build-debug-clang-7/swprefetcher/libSWPrefetecherPass.so")
+#SET(CMAKE_C_FLAGS "-O2 -Xclang -load -Xclang /home/chris/programming/camb_software_prefetch_revival/cmake-build-debug-clang-7/swprefetcher/libSWPrefetecherPass.so")
+#SET(CMAKE_CXX_FLAGS "-Xclang -load -Xclang /home/chris/CK-TOOLS/plugin-llvm-sw-prefetch-pass-0.1-llvm-3.9.0-linux-64/lib/SwPrefetchPass.so -O3")
+#SET(CMAKE_C_FLAGS "-Xclang -load -Xclang /home/chris/CK-TOOLS/plugin-llvm-sw-prefetch-pass-0.1-llvm-3.9.0-linux-64/lib/SwPrefetchPass.so -O3")
 
 if (PGO_INSTRUMENTATION_GENERATE)
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-instr-generate -Xclang -fprofile-instrument=llvm")

@@ -18,6 +18,8 @@ using namespace boost::multiprecision;
 #define REPETITIONS_OF_EXPERIMENTS 10
 #define ADD_VTUNE_INSTRUMENTATION true
 #define SHOULD_PREFETCH_INDEX_ARRAY false
+#define TESTING_SORTEDNESS true
+#define SORTEDNESS_CLUSTERED false
 
 static void* flush_data_cache() {
     const int size = 40*1024*1024; // Allocate 40M. Much larger than L3 cache
@@ -106,6 +108,26 @@ static void BM_Prefetching(benchmark::State& state) {
     for (volatile uint32_t x = 0; x < INDEX_ARRAY_SIZE; x ++) {
         index_array[x] = x;
     }
+
+    // Mess with the sortedness
+    if constexpr(TESTING_SORTEDNESS) {
+        int unsortedness = 100 - state.range(1);
+        if constexpr(SORTEDNESS_CLUSTERED) {
+            for (volatile int x = 0; x < INDEX_ARRAY_SIZE; x ++) {
+                if (x % 100 < unsortedness) {
+                    index_array[x] = rand() % INDEX_ARRAY_SIZE;
+                }
+            }
+        } else {
+            for (volatile int x = 0; x < INDEX_ARRAY_SIZE; x ++) {
+                if (rand() % 100 < unsortedness) {
+                    index_array[x] = rand() % INDEX_ARRAY_SIZE;
+                }
+            }
+        }
+    }
+
+
     if constexpr (shuffled_memory_access) {
         std::shuffle(&index_array[0], &index_array[INDEX_ARRAY_SIZE], std::mt19937(std::random_device()()));
     }
@@ -167,7 +189,13 @@ static void CustomArguments(benchmark::internal::Benchmark* b) {
     for (int i = 10000000; i < std::min(100000000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 10000000)
         b->Args({i});
         */
-    b->Args({100000000});
+    if constexpr(TESTING_SORTEDNESS) {
+        for (int x = 0; x <= 100; x += 10) {
+            b->Args({100000000, x});
+        }
+    } else {
+        b->Args({100000000});
+    }
 }
 
 void prefetching::register_benchmarks() {
@@ -183,6 +211,6 @@ void prefetching::register_benchmarks() {
     // Add all tests where the cache is flushed
     BENCHMARK_TEMPLATE(BM_Prefetching, false, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
 //    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
-    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+//    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
 //    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
 }
