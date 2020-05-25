@@ -22,8 +22,10 @@ using namespace boost::multiprecision;
 #define SHOULD_PREFETCH_INDEX_ARRAY false
 #define TESTING_SORTEDNESS false
 #define SORTEDNESS_CLUSTERED false
-#define RANDOM_INDEX_ARRAY_ADDITION true
-#define RANDOM_INDEX_ARRAY_ADDITION_RANGE_IN_ELEMENTS NUM_32BIT_INTS_IN_CACHE_LINE * 256
+#define RANDOM_INDEX_ARRAY_ADDITION false
+#define RANDOM_INDEX_ARRAY_ADDITION_RANGE_IN_ELEMENTS NUM_32BIT_INTS_IN_CACHE_LINE * 256 // 256 is where it appears to be even with the prefetching
+#define RANDOM_STRIDE_FROM_PREVIOUS true
+#define RANDOM_STRIDE_FROM_PREVIOUS_RANGE NUM_32BIT_INTS_IN_CACHE_LINE * 256
 
 static void* flush_data_cache() {
     const int size = 40*1024*1024; // Allocate 40M. Much larger than L3 cache
@@ -143,6 +145,21 @@ static void BM_Prefetching(benchmark::State& state) {
         }
     }
 
+    if constexpr(RANDOM_STRIDE_FROM_PREVIOUS) {
+        // Deal with the first array element, set it to 0 because one element will not have an effect on the
+        // run time of the huge array
+        index_array[0] = 0;
+        for (volatile int x = 1; x < INDEX_ARRAY_SIZE; x ++) {
+            // The following code will add +- RANDOM_INDEX_ARRAY_ADDITION_RANGE_IN_ELEMENTS to x while keeping it in bounds
+            int amount_to_add =
+                    (rand() % (RANDOM_STRIDE_FROM_PREVIOUS_RANGE * 2))
+                    - (RANDOM_STRIDE_FROM_PREVIOUS_RANGE);
+            int index = index_array[x - 1] + amount_to_add;
+            int in_bounds = std::min(INDEX_ARRAY_SIZE, std::max(0, index));
+            index_array[x] = in_bounds;
+        }
+    }
+
 
     if constexpr (shuffled_memory_access) {
         std::shuffle(&index_array[0], &index_array[INDEX_ARRAY_SIZE], std::mt19937(std::random_device()()));
@@ -225,8 +242,8 @@ void prefetching::register_benchmarks() {
         BENCHMARK_TEMPLATE(BM_Prefetching, false, false, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
     }
     // Add all tests where the cache is flushed
-    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
-    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
-//    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
-//    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+//    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+//    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
 }
