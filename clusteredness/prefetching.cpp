@@ -9,17 +9,21 @@ using namespace boost::multiprecision;
 
 // Tunable parameters
 #define PREFETCH_OFFSET 64 // Assuming 64 for now, taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
+                           // After testing this seemed about right, lead to large speedups
 #define CACHE_SIZE 32 * 1024 // Assume the L1 data cache is 32KB, this is the case on my machine and the lab machine I was testing on
 #define MAX_NUM_ELEMENTS_IN_ARRAY 100000000
-// #define NUMBER_OF_UINT32_TS_IN_A_CACHE_LINE 512 / 32 Maybe add this back in later with cache sizes
+#define CACHE_LINE_SIZE_IN_BITS 64 * 8
+#define NUM_32BIT_INTS_IN_CACHE_LINE CACHE_LINE_SIZE_IN_BITS / 32
 
 // Test Control
 #define TESTING_EFFECTS_OF_CACHE_FLUSHING false
 #define REPETITIONS_OF_EXPERIMENTS 10
 #define ADD_VTUNE_INSTRUMENTATION true
 #define SHOULD_PREFETCH_INDEX_ARRAY false
-#define TESTING_SORTEDNESS true
+#define TESTING_SORTEDNESS false
 #define SORTEDNESS_CLUSTERED false
+#define RANDOM_INDEX_ARRAY_ADDITION true
+#define RANDOM_INDEX_ARRAY_ADDITION_RANGE_IN_ELEMENTS NUM_32BIT_INTS_IN_CACHE_LINE * 256
 
 static void* flush_data_cache() {
     const int size = 40*1024*1024; // Allocate 40M. Much larger than L3 cache
@@ -94,8 +98,8 @@ static void BM_Prefetching(benchmark::State& state) {
     // Setup
     srand(time(NULL));
     auto num_elements = state.range(0);
-    auto* array =  (uint32_t*) malloc(sizeof(uint32_t) * num_elements);
-    for (volatile uint32_t x = 0; x < num_elements; x += num_elements) {
+    auto* array =  (int32_t*) malloc(sizeof(int32_t) * num_elements);
+    for (volatile int32_t x = 0; x < num_elements; x += num_elements) {
         array[x] = rand();
     }
 
@@ -103,9 +107,9 @@ static void BM_Prefetching(benchmark::State& state) {
     __itt_string_handle* task = __itt_string_handle_create("Memory Load Iteration");
 
     // Create an index array then randomly shuffle it
-    u_int32_t INDEX_ARRAY_SIZE = num_elements;
-    auto* index_array = (uint32_t*) malloc(sizeof(u_int32_t) * INDEX_ARRAY_SIZE);
-    for (volatile uint32_t x = 0; x < INDEX_ARRAY_SIZE; x ++) {
+    int32_t INDEX_ARRAY_SIZE = num_elements;
+    auto* index_array = (int32_t*) malloc(sizeof(int32_t) * INDEX_ARRAY_SIZE);
+    for (volatile int32_t x = 0; x < INDEX_ARRAY_SIZE; x ++) {
         index_array[x] = x;
     }
 
@@ -124,6 +128,18 @@ static void BM_Prefetching(benchmark::State& state) {
                     index_array[x] = rand() % INDEX_ARRAY_SIZE;
                 }
             }
+        }
+    }
+
+    if constexpr(RANDOM_INDEX_ARRAY_ADDITION) {
+        for (volatile int x = 0; x < INDEX_ARRAY_SIZE; x ++) {
+            // The following code will add +- RANDOM_INDEX_ARRAY_ADDITION_RANGE_IN_ELEMENTS to x while keeping it in bounds
+            int amount_to_add =
+                    (rand() % (RANDOM_INDEX_ARRAY_ADDITION_RANGE_IN_ELEMENTS * 2))
+                    - (RANDOM_INDEX_ARRAY_ADDITION_RANGE_IN_ELEMENTS);
+            int index = x + amount_to_add;
+            int in_bounds = std::min(INDEX_ARRAY_SIZE, std::max(0, index));
+            index_array[x] = in_bounds;
         }
     }
 
@@ -210,7 +226,7 @@ void prefetching::register_benchmarks() {
     }
     // Add all tests where the cache is flushed
     BENCHMARK_TEMPLATE(BM_Prefetching, false, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
-//    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
 //    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
 //    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
 }
