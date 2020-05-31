@@ -243,8 +243,8 @@ void prefetching::register_benchmarks() {
         BENCHMARK_TEMPLATE(BM_Prefetching, false, false, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
     }
     // Add all tests where the cache is flushed
-    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
-    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, false)->Apply(CustomArguments)->MinTime(0.0001);
+    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->MinTime(0.0001);
 //    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, false)->Apply(CustomArguments)->MinTime(0.0001);
 //    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, true)->Apply(CustomArguments)->MinTime(0.0001);
 }
