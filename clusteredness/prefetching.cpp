@@ -11,21 +11,21 @@ using namespace boost::multiprecision;
 #define PREFETCH_OFFSET 64 // Assuming 64 for now, taken from https://www.cl.cam.ac.uk/~sa614/papers/Software-Prefetching-CGO2017.pdf
                            // After testing this seemed about right, lead to large speedups
 #define CACHE_SIZE 32 * 1024 // Assume the L1 data cache is 32KB, this is the case on my machine and the lab machine I was testing on
-#define MAX_NUM_ELEMENTS_IN_ARRAY 100000000
+#define MAX_NUM_ELEMENTS_IN_ARRAY 100000001
 #define CACHE_LINE_SIZE_IN_BITS 64 * 8
 #define NUM_32BIT_INTS_IN_CACHE_LINE CACHE_LINE_SIZE_IN_BITS / 32
 
 // Test Control
 #define TESTING_EFFECTS_OF_CACHE_FLUSHING false
-#define REPETITIONS_OF_EXPERIMENTS 10
-#define ADD_VTUNE_INSTRUMENTATION true
+#define REPETITIONS_OF_EXPERIMENTS 100
+#define ADD_VTUNE_INSTRUMENTATION false
 #define SHOULD_PREFETCH_INDEX_ARRAY false
 #define TESTING_SORTEDNESS false
 #define SORTEDNESS_CLUSTERED false
 #define RANDOM_INDEX_ARRAY_ADDITION false
 #define RANDOM_INDEX_ARRAY_ADDITION_RANGE_IN_ELEMENTS NUM_32BIT_INTS_IN_CACHE_LINE * 256 // 256 is where it appears to be even with the prefetching
-#define RANDOM_STRIDE_FROM_PREVIOUS true
-#define RANDOM_STRIDE_FROM_PREVIOUS_RANGE NUM_32BIT_INTS_IN_CACHE_LINE * 256
+#define RANDOM_STRIDE_FROM_PREVIOUS false
+#define RANDOM_STRIDE_FROM_PREVIOUS_RANGE NUM_32BIT_INTS_IN_CACHE_LINE * 1024
 
 static void* flush_data_cache() {
     const int size = 40*1024*1024; // Allocate 40M. Much larger than L3 cache
@@ -199,29 +199,29 @@ static void BM_Prefetching(benchmark::State& state) {
     }
 
     // Teardown
+    free(index_array);
     free(array);
 }
 
 // Provides arguments in the range 1..100000, skewing the Hardwareproduced arguments towards 0
 static void CustomArguments(benchmark::internal::Benchmark* b) {
+    for (int i = 1; i < std::min(10, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 3)
+        b->Args({i});
+    for (int i = 10; i < std::min(100, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 30)
+        b->Args({i});
+    for (int i = 100; i < std::min(1000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 300)
+        b->Args({i});
+    for (int i = 1000; i < std::min(10000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 3000)
+        b->Args({i});
+    for (int i = 10000; i < std::min(100000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 30000)
+        b->Args({i});
+    for (int i = 100000; i < std::min(1000000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 300000)
+        b->Args({i});
+    for (int i = 1000000; i < std::min(10000000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 3000000)
+        b->Args({i});
+    for (int i = 10000000; i < std::min(100000001, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 30000000)
+        b->Args({i});
     /*
-    for (int i = 1; i < std::min(10, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 1)
-        b->Args({i});
-    for (int i = 10; i < std::min(100, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 10)
-        b->Args({i});
-    for (int i = 100; i < std::min(1000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 100)
-        b->Args({i});
-    for (int i = 1000; i < std::min(10000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 1000)
-        b->Args({i});
-    for (int i = 10000; i < std::min(100000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 10000)
-        b->Args({i});
-    for (int i = 100000; i < std::min(1000000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 100000)
-        b->Args({i});
-    for (int i = 1000000; i < std::min(10000000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 1000000)
-        b->Args({i});
-    for (int i = 10000000; i < std::min(100000000, MAX_NUM_ELEMENTS_IN_ARRAY); i+= 10000000)
-        b->Args({i});
-        */
     if constexpr(TESTING_SORTEDNESS) {
         for (int x = 0; x <= 100; x += 10) {
             b->Args({100000000, x});
@@ -229,6 +229,7 @@ static void CustomArguments(benchmark::internal::Benchmark* b) {
     } else {
         b->Args({100000000});
     }
+    */
 }
 
 void prefetching::register_benchmarks() {
@@ -242,8 +243,8 @@ void prefetching::register_benchmarks() {
         BENCHMARK_TEMPLATE(BM_Prefetching, false, false, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
     }
     // Add all tests where the cache is flushed
-//    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
-//    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
-    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
-    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, false)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+    BENCHMARK_TEMPLATE(BM_Prefetching, false, true, true)->Apply(CustomArguments)->Iterations(REPETITIONS_OF_EXPERIMENTS);
+//    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, false)->Apply(CustomArguments)->MinTime(0.0001);
+//    BENCHMARK_TEMPLATE(BM_Prefetching, true, true, true)->Apply(CustomArguments)->MinTime(0.0001);
 }
