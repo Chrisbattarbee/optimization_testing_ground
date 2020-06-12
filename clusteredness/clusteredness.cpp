@@ -37,7 +37,7 @@
  * However with high clusteredness, the runtime approaches that of low selectivity scores.
  * Therefore, removing if conversion when a branch has high clusteredness appears to be a valuable optimization.
 */
-#define NUM_ITERATIONS 1000000000
+#define NUM_ITERATIONS 10000000
 static void BM_Clusteredness(benchmark::State& state) {
     // Setup
     double selectivity = ((float) state.range(0)) / 100.0;
@@ -84,13 +84,14 @@ int expensive_function2() {
     return rand();
 }
 
+#define CLUSTEREDNESS 0.0
 static void BM_Clusteredness_New(benchmark::State& state) {
     int* yesNoArr = (int*) malloc(sizeof(int) * NUM_ITERATIONS);
     for (volatile int x = 0; x < NUM_ITERATIONS; x ++) {
-        if (x < NUM_ITERATIONS / 2) {
+        if (((float) x) < ((float) NUM_ITERATIONS) * CLUSTEREDNESS) {
             yesNoArr[x] = 0;
         } else {
-            yesNoArr[x] = 1;
+            yesNoArr[x] = rand() % 2;
         }
     }
 
@@ -103,7 +104,7 @@ static void BM_Clusteredness_New(benchmark::State& state) {
     for (auto _ : state) {
         for (volatile uint32_t x = 0; x < NUM_ITERATIONS; x ++) {
             double b = (float) x;
-            a /= x < NUM_ITERATIONS / 2 ? b * 147: 0.5 ;
+            a /= x < NUM_ITERATIONS / 2 ? b * 147.2: b / 423.1 ;
         }
     }
     benchmark::DoNotOptimize(a);
@@ -115,9 +116,6 @@ static void BM_Clusteredness_New(benchmark::State& state) {
 
 // Provides arguments of the cross product of [0..101, 10] x [0..101, 10]
 static void CustomArguments(benchmark::internal::Benchmark* b) {
-    for (int i = 0; i <= 100; i+= 10)
-        for (int j = 0; j <= 100; j+= 10)
-            b->Args({i, j});
 }
 
 
