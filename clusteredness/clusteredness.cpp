@@ -3,6 +3,8 @@
 //
 
 #include "clusteredness.h"
+#include <cmath>
+#include "ittnotify.h"
 
 /*
  * Arguments.
@@ -35,7 +37,7 @@
  * However with high clusteredness, the runtime approaches that of low selectivity scores.
  * Therefore, removing if conversion when a branch has high clusteredness appears to be a valuable optimization.
 */
-#define NUM_ITERATIONS 100000000
+#define NUM_ITERATIONS 1000000000
 static void BM_Clusteredness(benchmark::State& state) {
     // Setup
     double selectivity = ((float) state.range(0)) / 100.0;
@@ -72,6 +74,45 @@ static void BM_Clusteredness(benchmark::State& state) {
     free(array);
 }
 
+__attribute__ ((pure))
+int expensive_function1() {
+    return rand();
+}
+
+__attribute__ ((pure))
+int expensive_function2() {
+    return rand();
+}
+
+static void BM_Clusteredness_New(benchmark::State& state) {
+    int* yesNoArr = (int*) malloc(sizeof(int) * NUM_ITERATIONS);
+    for (volatile int x = 0; x < NUM_ITERATIONS; x ++) {
+        if (x < NUM_ITERATIONS / 2) {
+            yesNoArr[x] = 0;
+        } else {
+            yesNoArr[x] = 1;
+        }
+    }
+
+    __itt_domain *domain = __itt_domain_create("Hardware Prefetcher");
+    __itt_string_handle *task = __itt_string_handle_create("Memory Load Iteration");
+    __itt_task_begin(domain, __itt_null, __itt_null, task);
+
+    // Actual benchmark
+    double a = 100;
+    for (auto _ : state) {
+        for (volatile uint32_t x = 0; x < NUM_ITERATIONS; x ++) {
+            double b = (float) x;
+            a /= x < NUM_ITERATIONS / 2 ? b * 147: 0.5 ;
+        }
+    }
+    benchmark::DoNotOptimize(a);
+
+    __itt_task_end(domain);
+
+}
+
+
 // Provides arguments of the cross product of [0..101, 10] x [0..101, 10]
 static void CustomArguments(benchmark::internal::Benchmark* b) {
     for (int i = 0; i <= 100; i+= 10)
@@ -81,5 +122,5 @@ static void CustomArguments(benchmark::internal::Benchmark* b) {
 
 
 void clusteredness::register_benchmarks() {
-    BENCHMARK(BM_Clusteredness)->Apply(CustomArguments);
+    BENCHMARK(BM_Clusteredness_New)->Iterations(10);
 }
